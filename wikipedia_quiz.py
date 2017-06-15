@@ -6,19 +6,22 @@ Written by Nicholas Moser. NicholasMoser56@gmail.com www.github.com/NicholasMose
 """
 from builtins import input
 import sys
+import getopt
 import wikipedia
 import random
 
 NUMBER_OF_ARTICLES_DEFAULT = 5
 PASSAGE_LENGTH_DEFAULT = 64
-ALLOW_TITLE_IN_PASSAGE_DEFAULT = False
 
-def wikipedia_quiz(number_of_articles, passage_length, allow_title_in_passage):
+def main():
+    number_of_articles, passage_length = handle_args()
+    wikipedia_quiz(number_of_articles, passage_length)
+
+def wikipedia_quiz(number_of_articles, passage_length):
     """Generates a multiple choice quiz to identify the correct wikipedia article that
     a random passage is pulled from. The number of articles determines how many choices
     you must pick from. The passage length determines the number of characters that the
-    random passage will be. You also can decide whether or not to prevent the random
-    passage from containing any words from the title of the article.
+    random passage will be. 
     """
     print("*** Wikipedia Quiz ***")
     random_articles = wikipedia.random(number_of_articles)
@@ -38,12 +41,12 @@ def wikipedia_quiz(number_of_articles, passage_length, allow_title_in_passage):
             random_articles[correct_article_index] = new_random_article
             
     random_passage = retrieve_random_passage(correct_page, passage_length)
+    
     # If title is not allowed in passage, keep generating passages until that is not the case.
-    if not allow_title_in_passage:
-        while passage_contains_title(random_passage, correct_article):
-            random_passage = retrieve_random_passage(correct_page, passage_length)
+    while passage_contains_title(random_passage, correct_article):
+        random_passage = retrieve_random_passage(correct_page, passage_length)
 
-    print(random_passage)
+    print("...%s..." % random_passage)
     for index, random_articles in enumerate(random_articles):
         print("%d: %s" % (index, random_articles))
         
@@ -53,6 +56,26 @@ def wikipedia_quiz(number_of_articles, passage_length, allow_title_in_passage):
     else:
         print("Incorrect, answer was: %d" % correct_article_index)
     
+def handle_args():
+    """Handle the command line arguments provided for the program.
+    There is an argument for the number of articles to make it configurable.
+    There is also an argument for the length of the passage to make it configurable.
+    If the argument is not provided it uses the provided default.
+    """
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"n:l:",["numberofarticles=","passagelength="])
+    except getopt.GetoptError:
+        print('wikipedia_quiz.py -n <numberofarticles> -l <passagelength>')
+        sys.exit(2)
+    number_of_articles = NUMBER_OF_ARTICLES_DEFAULT
+    passage_length = PASSAGE_LENGTH_DEFAULT
+    for opt, arg in opts:
+        if opt in ("-n", "--numberofarticles"):
+            number_of_articles = int(arg)
+        elif opt in ("-l", "--passagelength"):
+            passage_length = int(arg)
+    return number_of_articles, passage_length
+    
 def retrieve_random_passage(page, length):
     """Given a wikipedia page and length, retrieves a random passage of text from
     the content of the wikipedia page with the given length.
@@ -61,7 +84,6 @@ def retrieve_random_passage(page, length):
     start = random.randrange(len(content) - length)
     end = start + length
     return content[start:end]
-    #return "...%s..." % passage
 
 def passage_contains_title(passage, title):
     """Given a passage of text and title, returns true if any of the words of
@@ -83,4 +105,5 @@ def request_answer(number_of_articles):
             print("Not valid selection...")
     
 if __name__ == "__main__":
-    wikipedia_quiz(NUMBER_OF_ARTICLES_DEFAULT, PASSAGE_LENGTH_DEFAULT, ALLOW_TITLE_IN_PASSAGE_DEFAULT)
+    ok = main()
+    sys.exit(0 if ok else 1)
