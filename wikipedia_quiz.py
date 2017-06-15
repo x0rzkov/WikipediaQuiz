@@ -103,6 +103,7 @@ def request_answer(number_of_articles):
             valid_answer = True
         else:
             print("Not valid selection...")
+    return answer
     
 if __name__ == "__main__":
     ok = main()
