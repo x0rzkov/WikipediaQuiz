@@ -42,13 +42,17 @@ def wikipedia_quiz(number_of_articles, passage_length):
             
     random_passage = retrieve_random_passage(correct_page, passage_length)
     
-    # If title is not allowed in passage, keep generating passages until that is not the case.
+    # Keep generating passages until title is not in passage
     while passage_contains_title(random_passage, correct_article):
         random_passage = retrieve_random_passage(correct_page, passage_length)
 
     print("...%s..." % random_passage)
-    for index, random_articles in enumerate(random_articles):
-        print("%d: %s" % (index, random_articles))
+    
+    encodeUTF8 = sys.version_info.major == 2 # Hack support for Python 2
+    for index, random_article in enumerate(random_articles):
+        if encodeUTF8:
+            random_article = random_article.encode('utf-8')
+        print("%d: %s" % (index, random_article))
         
     answer = request_answer(number_of_articles)
     if answer == str(correct_article_index):
