@@ -10,13 +10,20 @@ import sys
 import re
 import getopt
 import random
+import logging
 import wikipedia
 
+# Default number of articles for the quiz if no command line argument given
 NUMBER_OF_ARTICLES_DEFAULT = 5
+
+# Default length of the passage for the quiz if no command line argument given
 PASSAGE_LENGTH_DEFAULT = 64
+
+# Maximum percent of whitespace allowed in a passage
 WHITE_SPACE_PERCENT_ALLOWED = .30
 
 def main():
+    logging.basicConfig(filename='info.log',level=logging.DEBUG)
     number_of_articles, passage_length = handle_args()
     wikipedia_quiz(number_of_articles, passage_length)
 
@@ -26,8 +33,10 @@ def wikipedia_quiz(number_of_articles, passage_length):
     you must pick from. The passage length determines the number of characters that the
     random passage will be. 
     """
-    print("*** Wikipedia Quiz ***")
+    print('*** Wikipedia Quiz ***')
+    logging.info('Quiz is starting')
     random_articles = wikipedia.random(number_of_articles)
+    logging.debug('Random articles: %s' % str(random_articles).encode('utf-8'))
     correct_article_index = random.randrange(number_of_articles)
     page_retrieved = False
     while not page_retrieved:
@@ -46,21 +55,25 @@ def wikipedia_quiz(number_of_articles, passage_length):
     random_passage = retrieve_random_passage(correct_page, passage_length)
     
     while is_passage_unfair(random_passage, correct_article):
+        logging.info('Passage is unfair, generating a new one...')
         random_passage = retrieve_random_passage(correct_page, passage_length)
 
-    print("...%s..." % random_passage)
+    print('...%s...' % random_passage)
     
     encodeUTF8 = sys.version_info.major == 2 # Hack support for Python 2
     for index, random_article in enumerate(random_articles):
         if encodeUTF8:
             random_article = random_article.encode('utf-8')
-        print("%d: %s" % (index, random_article))
+        print('%d: %s' % (index, random_article))
         
     answer = request_answer(number_of_articles)
     if answer == str(correct_article_index):
-        print("Correct!")
+        print('Correct!')
+        logging.info('Correct, answer was %d' % correct_article_index)
     else:
-        print("Incorrect, answer was: %d" % correct_article_index)
+        print('Incorrect, answer was: %d' % correct_article_index)
+        logging.info('Incorrect, answer was: %d' % correct_article_index)
+    logging.info('Quiz is ending')
     
 def retrieve_random_passage(page, length):
     """Given a wikipedia page and length, retrieves a random passage of text from
@@ -87,13 +100,20 @@ def has_too_much_whitespace(passage):
     length_without_whitespace = len(re.sub('[\s+]', '', passage))
     whitespace = length - length_without_whitespace
     percent_whitespace = whitespace / length
-    return percent_whitespace >= WHITE_SPACE_PERCENT_ALLOWED
+    too_much_whitespace = percent_whitespace >= WHITE_SPACE_PERCENT_ALLOWED
+    logging.debug('Passage length: %d; Whitespace: %d' % (length, whitespace))
+    if too_much_whitespace:
+        logging.debug('Too much whitespace for this passage')
+    return too_much_whitespace
     
 def passage_contains_title(passage, title):
     """Given a passage of text and title, returns true if any of the words of
     the title are found in the passage of text.
     """
-    return True if [x for x in title.split() if x in passage] else False 
+    title_words_in_passage = [x for x in title.split() if x in passage]
+    if title_words_in_passage:
+        logging.debug('Passage contains word(s) from title: %s' % str(title_words_in_passage).encode('utf-8'))
+    return True if title_words_in_passage else False
     
 def request_answer(number_of_articles):
     """Asks the user to provide an answer to the quiz. The answer must be
@@ -106,7 +126,8 @@ def request_answer(number_of_articles):
         if answer in ''.join(str(e) for e in range(number_of_articles)):
             valid_answer = True
         else:
-            print("Not valid selection...")
+            print('Not valid selection...')
+    logging.info('Answer retrieved from user')
     return answer
     
 def handle_args():
@@ -116,19 +137,22 @@ def handle_args():
     If the argument is not provided it uses the provided default.
     """
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"n:l:",["numberofarticles=","passagelength="])
+        opts, args = getopt.getopt(sys.argv[1:],'n:l:',['numberofarticles=','passagelength='])
     except getopt.GetoptError:
         print('wikipedia_quiz.py -n <numberofarticles> -l <passagelength>')
+        logging.error('Opt error encountered')
         sys.exit(2)
     number_of_articles = NUMBER_OF_ARTICLES_DEFAULT
     passage_length = PASSAGE_LENGTH_DEFAULT
     for opt, arg in opts:
-        if opt in ("-n", "--numberofarticles"):
+        if opt in ('-n', '--numberofarticles'):
             number_of_articles = int(arg)
-        elif opt in ("-l", "--passagelength"):
+            logging.info('Number of articles parameter found')
+        elif opt in ('-l', '--passagelength'):
             passage_length = int(arg)
+            logging.info('Passage length parameter found')
     return number_of_articles, passage_length
     
-if __name__ == "__main__":
+if __name__ == '__main__':
     ok = main()
     sys.exit(0 if ok else 1)
