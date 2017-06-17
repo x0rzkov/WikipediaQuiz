@@ -4,14 +4,17 @@ Are you able to pick out the correct wikipedia article based on a small passage
 of text pulled from it? What if it's multiple choice?
 Written by Nicholas Moser. NicholasMoser56@gmail.com www.github.com/NicholasMoser
 """
+from __future__ import division
 from builtins import input
 import sys
+import re
 import getopt
-import wikipedia
 import random
+import wikipedia
 
 NUMBER_OF_ARTICLES_DEFAULT = 5
 PASSAGE_LENGTH_DEFAULT = 64
+WHITE_SPACE_PERCENT_ALLOWED = .30
 
 def main():
     number_of_articles, passage_length = handle_args()
@@ -42,8 +45,7 @@ def wikipedia_quiz(number_of_articles, passage_length):
             
     random_passage = retrieve_random_passage(correct_page, passage_length)
     
-    # Keep generating passages until title is not in passage
-    while passage_contains_title(random_passage, correct_article):
+    while is_passage_unfair(random_passage, correct_article):
         random_passage = retrieve_random_passage(correct_page, passage_length)
 
     print("...%s..." % random_passage)
@@ -59,6 +61,53 @@ def wikipedia_quiz(number_of_articles, passage_length):
         print("Correct!")
     else:
         print("Incorrect, answer was: %d" % correct_article_index)
+    
+def retrieve_random_passage(page, length):
+    """Given a wikipedia page and length, retrieves a random passage of text from
+    the content of the wikipedia page with the given length.
+    """
+    content = page.content
+    start = random.randrange(len(content) - length)
+    end = start + length
+    return content[start:end]
+    
+def is_passage_unfair(passage, title):
+    """Checks if a passage is unfair or not. This means it is either unfair to the player in being
+    too hard, or unfair to the quiz by being too easy. The particular things that it checks is that
+    the passage does not contain any words of the article title or that there is too much white
+    space in the passage.
+    """
+    return passage_contains_title(passage, title) or has_too_much_whitespace(passage)
+
+def has_too_much_whitespace(passage):
+    """Given a passage of text, returns true if there is too much whitespace in it. The amount
+    allowed is defined by a global constant (lol).
+    """
+    length = len(passage)
+    length_without_whitespace = len(re.sub('[\s+]', '', passage))
+    whitespace = length - length_without_whitespace
+    percent_whitespace = whitespace / length
+    return percent_whitespace >= WHITE_SPACE_PERCENT_ALLOWED
+    
+def passage_contains_title(passage, title):
+    """Given a passage of text and title, returns true if any of the words of
+    the title are found in the passage of text.
+    """
+    return True if [x for x in title.split() if x in passage] else False 
+    
+def request_answer(number_of_articles):
+    """Asks the user to provide an answer to the quiz. The answer must be
+    an integer that is within the range of the number of articles or else the user
+    will be asked again.
+    """
+    valid_answer = False
+    while not valid_answer:
+        answer = input('Please select your answer: ')
+        if answer in ''.join(str(e) for e in range(number_of_articles)):
+            valid_answer = True
+        else:
+            print("Not valid selection...")
+    return answer
     
 def handle_args():
     """Handle the command line arguments provided for the program.
@@ -79,35 +128,6 @@ def handle_args():
         elif opt in ("-l", "--passagelength"):
             passage_length = int(arg)
     return number_of_articles, passage_length
-    
-def retrieve_random_passage(page, length):
-    """Given a wikipedia page and length, retrieves a random passage of text from
-    the content of the wikipedia page with the given length.
-    """
-    content = page.content
-    start = random.randrange(len(content) - length)
-    end = start + length
-    return content[start:end]
-
-def passage_contains_title(passage, title):
-    """Given a passage of text and title, returns true if any of the words of
-    the title are found in the passage of text.
-    """
-    return True if [x for x in title.split() if x in passage] else False 
-    
-def request_answer(number_of_articles):
-    """Asks the user to provide an answer to the quiz. The answer must be
-    an integer that is within the range of the number of articles or else the user
-    will be asked again.
-    """
-    valid_answer = False
-    while not valid_answer:
-        answer = input('Please select your answer: ')
-        if answer in ''.join(str(e) for e in range(number_of_articles)):
-            valid_answer = True
-        else:
-            print("Not valid selection...")
-    return answer
     
 if __name__ == "__main__":
     ok = main()
