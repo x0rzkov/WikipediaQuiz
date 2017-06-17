@@ -22,6 +22,9 @@ PASSAGE_LENGTH_DEFAULT = 64
 # Maximum percent of whitespace allowed in a passage
 WHITE_SPACE_PERCENT_ALLOWED = .30
 
+# Maximum amounnt of times to retry retrieving a passage
+RETRY_AMOUNT_MAX = 100
+
 def main():
     logging.basicConfig(filename='info.log',level=logging.DEBUG)
     number_of_articles, passage_length = handle_args()
@@ -51,21 +54,27 @@ def wikipedia_quiz(number_of_articles, passage_length):
             # article in the place of the old one.
             new_random_article = wikipedia.random()
             random_articles[correct_article_index] = new_random_article
-            
-    random_passage = retrieve_random_passage(correct_page, passage_length)
     
-    while is_passage_unfair(random_passage, correct_article):
+    # Try to obtain a good passage
+    random_passage = retrieve_random_passage(correct_page, passage_length)
+    retry = 0
+    while is_passage_unfair(random_passage, correct_article) and retry < RETRY_AMOUNT_MAX:
         logging.info('Passage is unfair, generating a new one...')
         random_passage = retrieve_random_passage(correct_page, passage_length)
+        retry += 1
+    if retry >= RETRY_AMOUNT_MAX:
+        logging.error('Too many retries for the passage...')
+        sys.exit(2)
 
+    # Print info to user
     print('...%s...' % random_passage)
-    
     encodeUTF8 = sys.version_info.major == 2 # Hack support for Python 2
     for index, random_article in enumerate(random_articles):
         if encodeUTF8:
             random_article = random_article.encode('utf-8')
         print('%d: %s' % (index, random_article))
         
+    # Handle answer
     answer = request_answer(number_of_articles)
     if answer == str(correct_article_index):
         print('Correct!')
