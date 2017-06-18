@@ -26,20 +26,24 @@ WHITE_SPACE_PERCENT_ALLOWED = .30
 RETRY_AMOUNT_MAX = 100
 
 def main():
-    logging.basicConfig(filename='info.log',level=logging.DEBUG)
+    """Run the Wikipedia Quiz program. Initializes logging, handles command line options,
+    and loads the quiz.
+    """
+    logging.basicConfig(filename='info.log', level=logging.DEBUG)
     number_of_articles, passage_length = handle_args()
-    wikipedia_quiz(number_of_articles, passage_length)
+    all_good = wikipedia_quiz(number_of_articles, passage_length)
+    sys.exit(0 if all_good else 1)
 
 def wikipedia_quiz(number_of_articles, passage_length):
     """Generates a multiple choice quiz to identify the correct wikipedia article that
     a random passage is pulled from. The number of articles determines how many choices
     you must pick from. The passage length determines the number of characters that the
-    random passage will be. 
+    random passage will be.
     """
     print('*** Wikipedia Quiz ***')
     logging.info('Quiz is starting')
     random_articles = wikipedia.random(number_of_articles)
-    logging.debug('Random articles: %s' % str(random_articles).encode('utf-8'))
+    logging.debug('Random articles: %s', str(random_articles).encode('utf-8'))
     correct_article_index = random.randrange(number_of_articles)
     page_retrieved = False
     while not page_retrieved:
@@ -47,14 +51,14 @@ def wikipedia_quiz(number_of_articles, passage_length):
             correct_article = random_articles[correct_article_index]
             correct_page = wikipedia.page(correct_article)
             page_retrieved = True
-        except wikipedia.exceptions.DisambiguationError as e:
-            # Wikipedia provides options to choose from, but if we pick one, the title will be 
+        except wikipedia.exceptions.DisambiguationError:
+            # Wikipedia provides options to choose from, but if we pick one, the title will be
             # much more descriptive (particularly by using parenthesis like so). This usually
-            # ends up making the guessing too easy. Let's just reroll and put the new random 
+            # ends up making the guessing too easy. Let's just reroll and put the new random
             # article in the place of the old one.
             new_random_article = wikipedia.random()
             random_articles[correct_article_index] = new_random_article
-    
+
     # Try to obtain a good passage
     random_passage = retrieve_random_passage(correct_page, passage_length)
     retry = 0
@@ -64,26 +68,27 @@ def wikipedia_quiz(number_of_articles, passage_length):
         retry += 1
     if retry >= RETRY_AMOUNT_MAX:
         logging.error('Too many retries for the passage...')
-        sys.exit(2)
+        return False
 
     # Print info to user
     print('...%s...' % random_passage)
-    encodeUTF8 = sys.version_info.major == 2 # Hack support for Python 2
+    encode_utf8 = sys.version_info.major == 2 # Hack support for Python 2
     for index, random_article in enumerate(random_articles):
-        if encodeUTF8:
+        if encode_utf8:
             random_article = random_article.encode('utf-8')
         print('%d: %s' % (index, random_article))
-        
+
     # Handle answer
     answer = request_answer(number_of_articles)
     if answer == str(correct_article_index):
         print('Correct!')
-        logging.info('Correct, answer was %d' % correct_article_index)
+        logging.info('Correct, answer was %d', correct_article_index)
     else:
         print('Incorrect, answer was: %d' % correct_article_index)
-        logging.info('Incorrect, answer was: %d' % correct_article_index)
+        logging.info('Incorrect, answer was: %d', correct_article_index)
     logging.info('Quiz is ending')
-    
+    return True
+
 def retrieve_random_passage(page, length):
     """Given a wikipedia page and length, retrieves a random passage of text from
     the content of the wikipedia page with the given length.
@@ -92,7 +97,7 @@ def retrieve_random_passage(page, length):
     start = random.randrange(len(content) - length)
     end = start + length
     return content[start:end]
-    
+
 def is_passage_unfair(passage, title):
     """Checks if a passage is unfair or not. This means it is either unfair to the player in being
     too hard, or unfair to the quiz by being too easy. The particular things that it checks is that
@@ -106,24 +111,25 @@ def has_too_much_whitespace(passage):
     allowed is defined by a global constant (lol).
     """
     length = len(passage)
-    length_without_whitespace = len(re.sub('[\s+]', '', passage))
+    length_without_whitespace = len(re.sub('[\\s+]', '', passage))
     whitespace = length - length_without_whitespace
     percent_whitespace = whitespace / length
     too_much_whitespace = percent_whitespace >= WHITE_SPACE_PERCENT_ALLOWED
-    logging.debug('Passage length: %d; Whitespace: %d' % (length, whitespace))
+    logging.debug('Passage length: %d; Whitespace: %d', length, whitespace)
     if too_much_whitespace:
         logging.debug('Too much whitespace for this passage')
     return too_much_whitespace
-    
+
 def passage_contains_title(passage, title):
     """Given a passage of text and title, returns true if any of the words of
     the title are found in the passage of text.
     """
     title_words_in_passage = [x for x in title.split() if x in passage]
     if title_words_in_passage:
-        logging.debug('Passage contains word(s) from title: %s' % str(title_words_in_passage).encode('utf-8'))
+        title_words = str(title_words_in_passage).encode('utf-8')
+        logging.debug('Passage contains word(s) from title: %s', title_words)
     return True if title_words_in_passage else False
-    
+
 def request_answer(number_of_articles):
     """Asks the user to provide an answer to the quiz. The answer must be
     an integer that is within the range of the number of articles or else the user
@@ -138,7 +144,7 @@ def request_answer(number_of_articles):
             print('Not valid selection...')
     logging.info('Answer retrieved from user')
     return answer
-    
+
 def handle_args():
     """Handle the command line arguments provided for the program.
     There is an argument for the number of articles to make it configurable.
@@ -146,7 +152,7 @@ def handle_args():
     If the argument is not provided it uses the provided default.
     """
     try:
-        opts, args = getopt.getopt(sys.argv[1:],'n:l:',['numberofarticles=','passagelength='])
+        opts = getopt.getopt(sys.argv[1:], 'n:l:', ['numberofarticles=', 'passagelength='])
     except getopt.GetoptError:
         print('wikipedia_quiz.py -n <numberofarticles> -l <passagelength>')
         logging.error('Opt error encountered')
@@ -161,7 +167,6 @@ def handle_args():
             passage_length = int(arg)
             logging.info('Passage length parameter found')
     return number_of_articles, passage_length
-    
+
 if __name__ == '__main__':
-    ok = main()
-    sys.exit(0 if ok else 1)
+    main()
