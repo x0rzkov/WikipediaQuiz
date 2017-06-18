@@ -67,6 +67,7 @@ def wikipedia_quiz(number_of_articles, passage_length):
         random_passage = retrieve_random_passage(correct_page, passage_length)
         retry += 1
     if retry >= RETRY_AMOUNT_MAX:
+        print('Too many retries for the passage...')
         logging.error('Too many retries for the passage...')
         return False
 
@@ -94,6 +95,9 @@ def retrieve_random_passage(page, length):
     the content of the wikipedia page with the given length.
     """
     content = page.content
+    content_length = len(content)
+    if length > content_length:
+        length = content_length - 1
     start = random.randrange(len(content) - length)
     end = start + length
     return content[start:end]
@@ -152,7 +156,7 @@ def handle_args():
     If the argument is not provided it uses the provided default.
     """
     try:
-        opts = getopt.getopt(sys.argv[1:], 'n:l:', ['numberofarticles=', 'passagelength='])
+        opts, args = getopt.getopt(sys.argv[1:], 'n:l:', ['numberofarticles=', 'passagelength='])
     except getopt.GetoptError:
         print('wikipedia_quiz.py -n <numberofarticles> -l <passagelength>')
         logging.error('Opt error encountered')
