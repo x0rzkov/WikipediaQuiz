@@ -32,5 +32,5 @@ or
 
 
 #### Dependencies
-* wikipedia
+* [wikipedia](https://github.com/goldsmith/Wikipedia)
 
